@@ -159,27 +159,3 @@ YOUR ANSWER (following all rules above):"""
         for chunk in stream:
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
-        
-    # Test
-# if __name__ == "__main__":
-#     # Set your API key first:
-#     # export GROQ_API_KEY="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"
-    
-    
-#     llm = LLMClient()
-    
-#     # Test documents
-#     docs = [
-#         {
-#             "content": "Privacy is something very important. It involves protecting personal data and ensuring that individuals have control over their own information.",
-#             "metadata": {"source": "Data Privacy Policy.pdf"}
-#         }
-#     ]
-    
-#     result = llm.generate_answer(
-#         query="What is privacy?",
-#         context_docs=docs,
-#         conversation_history=""
-#     )
-
-#     print(result)
