@@ -8,6 +8,7 @@ import requests
 from datetime import datetime
 from typing import Optional
 import json
+import os
 
 # ============================================================
 # PAGE CONFIGURATION
@@ -51,12 +52,103 @@ st.markdown("""
     .assistant-message {
         background-color: #f5f5f5;
     }
+    .source-badge {
+        display: inline-block;
+        padding: 0.2rem 0.5rem;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: bold;
+        margin-right: 0.5rem;
+    }
     </style>
 """, unsafe_allow_html=True)
 
 # ============================================================
 # HELPER FUNCTIONS
 # ============================================================
+
+def get_source_icon(source_type: str) -> str:
+    """Get emoji icon for source type"""
+    icons = {
+        "pdf": "📄",
+        "txt": "📝",
+        "md": "📋",
+        "url": "🌐",
+        "excel": "📊",
+        "csv": "📈",
+        "docx": "📃",
+        "confluence": "🔗"
+    }
+    return icons.get(source_type.lower(), "📌")
+
+
+def format_source_display(source: dict, index: int, include_scores: bool = True):
+    """Format and display a single source with enhanced metadata"""
+    
+    # Get metadata
+    metadata = source.get("metadata", {})
+    source_type = metadata.get("source_type", "unknown")
+    icon = get_source_icon(source_type)
+    
+    # Header with icon and type
+    st.markdown(f"### {icon} Source {index} - {source_type.upper()}")
+    
+    # Source location
+    source_path = metadata.get("source", "Unknown")
+    
+    if source_type == "url":
+        st.markdown(f"🔗 **URL:** [{source_path}]({source_path})")
+    else:
+        filename = os.path.basename(source_path) if source_path != "Unknown" else "Unknown"
+        st.markdown(f"📂 **File:** `{filename}`")
+    
+    # Metadata in columns
+    cols = st.columns(3)
+    
+    with cols[0]:
+        category = metadata.get("category", "N/A")
+        st.caption(f"📁 **Category:** {category}")
+    
+    with cols[1]:
+        domain = metadata.get("domain", "N/A")
+        st.caption(f"🏷️ **Domain:** {domain}")
+    
+    with cols[2]:
+        page = metadata.get("page")
+        if page is not None:
+            st.caption(f"📄 **Page:** {page}")
+    
+    # Content preview
+    content = source.get("content", "")
+    if isinstance(source, dict) and "page_content" in source:
+        content = source["page_content"]
+    
+    st.markdown("**Content Preview:**")
+    st.text_area(
+        f"content_{index}",
+        value=content[:500] + "..." if len(content) > 500 else content,
+        height=120,
+        disabled=True,
+        label_visibility="collapsed"
+    )
+    
+    # Relevance score
+    if include_scores and "score" in source:
+        score = source.get("score", 0.0)
+        
+        # Convert FAISS distance to similarity (lower distance = higher similarity)
+        similarity = 1 / (1 + score)
+        
+        score_cols = st.columns([3, 1])
+        
+        with score_cols[0]:
+            st.progress(similarity)
+        
+        with score_cols[1]:
+            st.metric("", f"{similarity:.1%}")
+        
+        st.caption(f"📊 Distance: {score:.4f}")
+
 
 def call_api(
     endpoint: str,
@@ -230,10 +322,9 @@ for message in st.session_state.messages:
         if role == "assistant" and "sources" in message:
             with st.expander("📚 Sources"):
                 for i, source in enumerate(message["sources"], 1):
-                    st.markdown(f"**Source {i}:**")
-                    st.text(source.get("content", "")[:200] + "...")
-                    if include_scores and "score" in source:
-                        st.caption(f"Relevance: {source['score']:.2%}")
+                    format_source_display(source, i, include_scores)
+                    if i < len(message["sources"]):
+                        st.divider()
 
 # ============================================================
 # USER INPUT
@@ -311,24 +402,11 @@ if send_button and user_input:
                 
                 # Show sources
                 if sources:
-                    with st.expander("📚 View Sources"):
+                    with st.expander("📚 View Sources", expanded=True):
                         for i, source in enumerate(sources, 1):
-                            st.markdown(f"**Source {i}:**")
-                            
-                            # Display content
-                            content = source.get("content", "")
-                            if isinstance(source, dict) and "page_content" in source:
-                                content = source["page_content"]
-                            
-                            st.text(content[:300] + "..." if len(content) > 300 else content)
-                            
-                            # Display score if available
-                            if include_scores and "score" in source:
-                                score = min(max(source["score"], 0.0), 1.0)
-                                st.progress(score)
-                                st.caption(f"Relevance: {source['score']:.2%}")
-                            
-                            st.divider()
+                            format_source_display(source, i, include_scores)
+                            if i < len(sources):
+                                st.divider()
                 
                 # Add assistant message to history
                 st.session_state.messages.append({

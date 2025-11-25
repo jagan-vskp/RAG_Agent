@@ -58,14 +58,13 @@ class LLMClient:
                               for i , doc in enumerate(context_docs[:5])
                               ])
         # Build prompt
-        prompt = f"""You are a helpful AI assistant that answers questions based on provided documents.
+        prompt = f"""You are a helpful AI assistant that answers questions based on provided documents. if the relevant information is not found in the documents,provide generalised answer.
 
 IMPORTANT RULES:
-1. Answer ONLY using the context documents below
-2. If the answer is not in the documents, say "I don't have enough information to answer that question"
-3. Cite sources using [Document X] notation
-4. Be concise but complete
-5. Don't make assumptions or use outside knowledge
+1. Answer using the context documents below, if relevant information is not found in the documents, provide your answer based on your knowledge.
+2. Cite sources using [Document X] notation
+3. Be concise but complete
+
 
 CONTEXT DOCUMENTS:
 {context}
