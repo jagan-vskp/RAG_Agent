@@ -63,8 +63,8 @@ services:
       dockerfile: Dockerfile.streamlit
     container_name: rag-frontend
     restart: unless-stopped
-    ports:
-      - "8501:8501"
+    # ports:
+    #   - "8501:8501"
     environment:
       - API_URL=http://backend:8080
     depends_on:
