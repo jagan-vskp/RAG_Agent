@@ -1,0 +1,43 @@
+# Virtual environments
+ragenv/
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environment files
+.env
+.env.local
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# AWS keys
+*.pem
+
+# Notebooks
+*.ipynb
+.ipynb_checkpoints/
+
+# Test files
+tests/
+test_*.py
