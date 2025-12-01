@@ -1,107 +1,135 @@
-version: '3.8'
+# ============================================================
+# RAG Agent - Docker Compose Production Configuration
+# Services: Redis, Backend (FastAPI), Frontend (Streamlit)
+# ============================================================
 
 services:
-  # ============================================================
-  # Redis Service (Session Storage)
-  # ============================================================
+  # ══════════════════════════════════════════════════════════
+  # Redis - Session & Conversation Memory
+  # ══════════════════════════════════════════════════════════
   redis:
     image: redis:7-alpine
     container_name: rag-redis
     restart: unless-stopped
+    
+    # Redis configuration
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 256mb
+      --maxmemory-policy allkeys-lru
+    
     ports:
       - "6379:6379"
+    
     volumes:
       - redis-data:/data
-    command: redis-server --appendonly yes
+    
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
+    
     networks:
       - rag-network
 
-  # ============================================================
-  # FastAPI Backend Service
-  # ============================================================
+  # ══════════════════════════════════════════════════════════
+  # Backend - FastAPI + RAG Engine
+  # ══════════════════════════════════════════════════════════
   backend:
     build:
       context: .
       dockerfile: Dockerfile
+    
+    image: rag_agent-backend:latest
     container_name: rag-backend
     restart: unless-stopped
-    # ports:
-    #   - "8080:8080"
+    
+    ports:
+      - "8080:8080"
+    
     environment:
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_DB=0
-      - DEBUG=False
-      - HOST=0.0.0.0
-      - PORT=8080
+      # Groq API key (loaded from .env file)
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      
+      # Redis connection
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      
+      # Application settings
+      DEBUG: "False"
+      HOST: 0.0.0.0
+      PORT: 8080
+    
     volumes:
-      - ./faiss_index:/app/faiss_index:ro  # Read-only
+      # Mount FAISS index (read-only for security)
+      - ./faiss_index:/app/faiss_index:ro
+    
     depends_on:
       redis:
         condition: service_healthy
+    
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
+    
     networks:
       - rag-network
+    
+    # Resource limits (adjust based on EC2 instance)
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
-  # ============================================================
-  # Streamlit Frontend Service
-  # ============================================================
+  # ══════════════════════════════════════════════════════════
+  # Frontend - Streamlit Chat UI
+  # ══════════════════════════════════════════════════════════
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
+    
+    image: rag_agent-frontend:latest
     container_name: rag-frontend
     restart: unless-stopped
-    # ports:
-    #   - "8501:8501"
+    
+    ports:
+      - "8501:8501"
+    
     environment:
-      - API_URL=http://backend:8080
+      # Backend API URL (internal Docker network)
+      API_URL: http://backend:8080
+    
     depends_on:
       backend:
         condition: service_healthy
+    
     networks:
       - rag-network
+    
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
-  # ============================================================
-  # Nginx Reverse Proxy
-  # ============================================================
-  nginx:
-    image: nginx:alpine
-    container_name: rag-nginx
-    restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./nginx/ssl:/etc/nginx/ssl:ro  # SSL certificates (optional)
-    depends_on:
-      - backend
-      - frontend
-    networks:
-      - rag-network
-
-# ============================================================
+# ════════════════════════════════════════════════════════════
 # Networks
-# ============================================================
+# ════════════════════════════════════════════════════════════
 networks:
   rag-network:
     driver: bridge
 
-# ============================================================
-# Volumes (Persistent Data)
-# ============================================================
+# ════════════════════════════════════════════════════════════
+# Volumes
+# ════════════════════════════════════════════════════════════
 volumes:
   redis-data:
     driver: local
