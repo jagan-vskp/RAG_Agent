@@ -1,48 +1,87 @@
 # ============================================================
-# Stage 1: Base Image with Python 3.11
+# RAG Agent Backend - Multi-Stage Production Build
+# Final image size: ~850MB-1.2GB (NOT 12.7GB!)
 # ============================================================
-FROM python:3.11-slim as base
 
-# Set environment variables
+# ────────────────────────────────────────────────────────────
+# Stage 1: Builder - Compile dependencies
+# ────────────────────────────────────────────────────────────
+FROM python:3.11-slim as builder
+
+WORKDIR /build
+
+# Install build dependencies (gcc, g++ needed for some packages)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    g++ \
+    make \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Copy ONLY requirements file
+COPY requirements-docker.txt requirements.txt
+
+# Build wheels (pre-compiled packages)
+# --no-cache-dir: Don't store pip cache (saves 2-3GB!)
+# --no-deps: Don't auto-install dependencies (we control versions)
+# --wheel-dir: Store wheels for next stage
+RUN pip wheel \
+    --no-cache-dir \
+    --no-deps \
+    --wheel-dir /build/wheels \
+    -r requirements.txt
+
+# ────────────────────────────────────────────────────────────
+# Stage 2: Runtime - Minimal production image
+# This is the ONLY stage that ends up in final image
+# ────────────────────────────────────────────────────────────
+FROM python:3.11-slim
+
+# Environment variables for optimization
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
+    PYTHONPATH=/app
 
-# Set working directory
 WORKDIR /app
 
-# ============================================================
-# Stage 2: Dependencies Installation
-# ============================================================
-FROM base as dependencies
+# Install ONLY runtime dependencies (curl for healthcheck)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
-# Copy requirements first (better caching)
-COPY requirements.txt .
+# Copy ONLY pre-built wheels from builder stage
+COPY --from=builder /build/wheels /wheels
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Install all packages from wheels, then DELETE wheels
+# This saves space in final image
+RUN pip install --no-cache-dir /wheels/* \
+    && rm -rf /wheels
 
-# ============================================================
-# Stage 3: Application
-# ============================================================
-FROM dependencies as application
-
-# Copy application code
-COPY . .
+# Copy ONLY application code (not tests, docs, venv, etc.)
+COPY main.py \
+     config.py \
+     llm_client.py \
+     rag_schema.py \
+     rag_memory.py \
+     retriever.py \
+     middleware.py \
+     ./
 
 # Create non-root user for security
-RUN useradd -m -u 1000 appuser && \
-    chown -R appuser:appuser /app
+RUN useradd -m -u 1000 appuser \
+    && chown -R appuser:appuser /app
 
+# Switch to non-root user
 USER appuser
 
-# Expose ports
+# Expose backend port
 EXPOSE 8080
 
-# Health check
+# Health check (curl must be installed)
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Start command
+# Start application
 CMD ["python", "main.py"]

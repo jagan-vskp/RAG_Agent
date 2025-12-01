@@ -1,43 +1,117 @@
-# Virtual environments
-ragenv/
-venv/
-.venv/
+# ============================================================
+# Docker Ignore - Prevent bloat in Docker images
+# ============================================================
 
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
+.Python
+*.pyc
+*.pyo
+*.pyd
 
-# Environment files
+# Virtual environments (NEVER include these!)
+ragenv/
+venv/
+.venv/
+env/
+ENV/
+.virtualenv/
+
+# Environment files (secrets!)
 .env
-.env.local
+.env.*
+*.env
 
 # Git
 .git/
 .gitignore
-
-# Documentation
-*.md
-docs/
+.gitattributes
+.github/
 
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
-# OS files
+*.swn
 .DS_Store
-Thumbs.db
+*.sublime-*
 
-# AWS keys
+# Documentation
+*.md
+README*
+docs/
+Learning/
+examples/
+tutorials/
+
+# AWS & Deployment
 *.pem
+*.key
+aws/
+terraform/
 
-# Notebooks
+# Jupyter Notebooks
 *.ipynb
 .ipynb_checkpoints/
+*.ipynb_checkpoints
 
-# Test files
+# Testing
 tests/
 test_*.py
+*_test.py
+pytest.ini
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.egg
+.eggs/
+
+# Docker files (don't copy into image!)
+docker-compose*.yml
+Dockerfile*
+.dockerignore
+
+# Logs
+*.log
+logs/
+*.log.*
+
+# Data files (can be large!)
+data/
+*.csv
+*.json
+*.parquet
+*.xlsx
+*.xls
+datasets/
+
+# Cache
+.cache/
+pip-wheel-metadata/
+*.sage.py
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# Backup files
+*.bak
+*.swp
+*~
+.backup/
+
+# Temporary files
+tmp/
+temp/
+*.tmp

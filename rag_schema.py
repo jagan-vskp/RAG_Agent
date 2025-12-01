@@ -2,6 +2,7 @@ from datetime import datetime
 import uuid
 from pydantic import BaseModel
 from typing import Optional
+from langchain_community.vectorstores import Redis
 
 
 class AskRequest(BaseModel):
