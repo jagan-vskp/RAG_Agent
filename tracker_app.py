@@ -148,6 +148,12 @@ DEFAULT_DATA = {
 # DATA PERSISTENCE
 # ============================================================
 
+def default_data_copy() -> dict:
+    """Return a deep copy of the default data."""
+    import copy
+    return copy.deepcopy(DEFAULT_DATA)
+
+
 def load_data() -> dict:
     """Load tracker data from JSON file, creating defaults if missing."""
     if os.path.exists(DATA_FILE):
@@ -160,8 +166,8 @@ def load_data() -> dict:
                     stored[key] = DEFAULT_DATA[key]
             return stored
         except (json.JSONDecodeError, IOError):
-            return json.loads(json.dumps(DEFAULT_DATA))
-    return json.loads(json.dumps(DEFAULT_DATA))
+            return default_data_copy()
+    return default_data_copy()
 
 
 def save_data(data: dict) -> None:
@@ -293,13 +299,13 @@ with st.sidebar:
     st.markdown(f"<div class='progress-label'>🔨 Projects ({projd}/{projt})</div>", unsafe_allow_html=True)
     st.progress(projp / 100)
 
-    sd, st_, sp = calc_progress(data["skills"])
-    st.markdown(f"<div class='progress-label'>🧠 Skills ({sd}/{st_})</div>", unsafe_allow_html=True)
+    sd, skills_total, sp = calc_progress(data["skills"])
+    st.markdown(f"<div class='progress-label'>🧠 Skills ({sd}/{skills_total})</div>", unsafe_allow_html=True)
     st.progress(sp / 100)
 
     st.markdown("---")
     if st.button("🔄 Reset to Defaults", use_container_width=True):
-        st.session_state.tracker = json.loads(json.dumps(DEFAULT_DATA))
+        st.session_state.tracker = default_data_copy()
         save_data(st.session_state.tracker)
         st.rerun()
 
@@ -483,7 +489,7 @@ with tab3:
 # ------------------------------------------------------------------
 with tab4:
     st.subheader("Skills")
-    st.caption(f"Completed: {sd} / {st_} skills ({sp}%)")
+    st.caption(f"Completed: {sd} / {skills_total} skills ({sp}%)")
     st.progress(sp / 100)
 
     LEVELS = ["beginner", "intermediate", "advanced"]
